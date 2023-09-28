@@ -1,0 +1,70 @@
+stages:
+ - validate
+ - plan
+ - apply
+ - ansible_run
+
+
+variables:
+  TF_DIR: ${CI_PROJECT_DIR}/terraform
+  AN_DIR: ${CI_PROJECT_DIR}/ansible
+  STATE_NAME: "k8s-apinup-lab-tf"
+  ADDRESS: "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/terraform/state/${STATE_NAME}"
+  ANSIBLE_HOST_KEY_CHECKING: 'false'
+  ANSIBLE_FORCE_COLOR: 'true'
+  ANSIBLE_PYTHON_INTERPRETER: /usr/bin/python3
+  PRIVATE_KEY: "$PRIVATE_KEY"
+
+image:
+  name: elianderson/kubespinup:1.1.0
+  entrypoint: [""]
+
+before_script:
+    - terraform --version
+    - ansible  --version
+    - export GITLAB_ACCESS_TOKEN=$TOKEN
+    - cd ${TF_DIR}
+    - terraform init -reconfigure -backend-config="address=${ADDRESS}" -backend-config="lock_address=${ADDRESS}/lock" -backend-config="unlock_address=${ADDRESS}/lock" -backend-config="username=<UserName>" -backend-config="password=$GITLAB_ACCESS_TOKEN" -backend-config="lock_method=POST" -backend-config="unlock_method=DELETE" -backend-config="retry_wait_min=5"
+
+validate:
+  stage: validate
+  script:
+    - terraform validate
+  cache:
+    key: ${CI_COMMIT_REF_NAME}
+    paths:
+    - ${TF_DIR}/.terraform
+    policy: pull-push
+
+plan:
+  stage: plan
+  script:
+    - terraform plan 
+  dependencies:
+    - validate
+  cache:
+    key: ${CI_COMMIT_REF_NAME}
+    paths:
+    - ${TF_DIR}/.terraform
+    policy: pull
+
+apply:
+  stage: apply
+  script:
+    - terraform apply  -auto-approve
+  dependencies:
+    - plan
+  cache:
+    key: ${CI_COMMIT_REF_NAME}
+    paths:
+    - ${TF_DIR}/.terraform
+    policy: pull
+
+ansible_run:
+  stage: ansible_run
+  script:
+    - mkdir ~/.ssh
+    - echo "UserKnownHostsFile ~/.ssh/known_hosts" > ~/.ssh/config && echo "$PRIVATE_KEY" > ~/.ssh/eli_k8s.pem
+    - chmod 600 ~/.ssh/eli_k8s.pem
+    - cd ${AN_DIR}
+    - ansible-playbook -i ec2.py -u ubuntu --private-key ~/.ssh/eli_k8s.pem Install_Docker_and_Kubernetes.yml
