@@ -18,3 +18,8 @@ variable "image-id" {
   description = "Image Id used to bootstrap the cluster"
 
 }
+
+variable "instance-type" {
+  type = string
+  description = "Instance Type used to bootstrap the cluster"
+}

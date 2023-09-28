@@ -5,7 +5,7 @@ resource "aws_key_pair" "aws-key"{
 
 resource "aws_instance" "kubernetes-worker" {
   ami           = var.image-id
-  instance_type = "t3.medium"
+  instance_type = var.instance-type
   key_name      = var.public-key-name
   count         = 2
   tags = {
@@ -17,7 +17,7 @@ resource "aws_instance" "kubernetes-worker" {
 
 resource "aws_instance" "kubernetes-master" {
   ami           = var.image-id
-  instance_type = "t3.medium"
+  instance_type = var.instance-type
   key_name      = var.public-key-name
   count         = 1
   tags = {
